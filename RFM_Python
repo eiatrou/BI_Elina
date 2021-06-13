@@ -1,0 +1,82 @@
+#Setting my local path 
+import os 
+os.getcwd()
+os.chdir(r'C:\Users\malef\Desktop')
+DIR=os.getcwd()
+print(os.getcwd())
+#We need to import several libraries and modules
+import numpy as np
+import pandas as pd
+import time, warnings
+import datetime as dt
+warnings.filterwarnings("ignore")
+# Get the Data
+# Read the data
+df=pd.read_excel(os.path.join(DIR,"BQ_orders.xlsx"))
+df.head()
+# RFM Analysis
+#**RFM** (Recency, Frequency, Monetary) analysis first we need to create three features R , F & M from the data 
+## Recency
+# To calculate recency, we need to find out  **when was the customer's most recent purchase.**.
+# Create a new column called date which contains the date of order only
+df['date'] = pd.DatetimeIndex(df['submit_dt']).date
+# Group by customers and check last date of purchase
+recency_df = df.groupby(by='user_id', as_index=False)['submit_dt'].max()
+recency_df.columns = ['user_id','submit_dt']
+# Calculate recent date to find recency to this date
+recent_date=recency_df.submit_dt.max()
+print(recent_date)
+# Calculate recency
+recency_df['Recency'] = recency_df['submit_dt'].apply(lambda x: (recent_date - x).days)
+recency_df.head()
+
+# ## Frequency
+# To calculate Frequency we need to check **How often a customer makes a purchase**.
+# Drop duplicates
+df1= df
+df1.drop_duplicates(subset=['order_id', 'user_id'], keep="first", inplace=True)
+# Calculate the frequency of purchases
+frequency_df = df1.groupby(by=['user_id'], as_index=False)['order_id'].count()
+frequency_df.columns = ['user_id','Frequency']
+frequency_df.head()
+# ## Monetary
+# To calculate Monetary value  **How much money did the customer spent in Jan2021?**
+# Create column total cost
+df['TotalCost'] =  df['basket']
+monetary_df = df.groupby(by='user_id',as_index=False).agg({'TotalCost': 'sum'})
+monetary_df.columns = ['user_id','Monetary']
+monetary_df.head()
+# ## Create RFM Table
+# Merge recency dataframe with frequency dataframe
+temp_df = recency_df.merge(frequency_df,on='user_id')
+temp_df.head()
+# Merge with monetary dataframe to get a table with the 3 columns
+rfm_df = temp_df.merge(monetary_df,on='user_id')
+# Use userID as index
+rfm_df.set_index('user_id',inplace=True)
+# Check the head
+rfm_df.head()
+rfm_df.head()
+# Rank each metric R , F & M
+rfm_df['R_rank'] = rfm_df['Recency'].rank( ascending=False)
+rfm_df['F_rank'] = rfm_df['Frequency'].rank(ascending=True)
+rfm_df['M_rank'] = rfm_df['Monetary'].rank(ascending=True)
+rfm_df.head()
+# normalize each rank with Max rank
+rfm_df['R_rank_norm']=(rfm_df['R_rank']/rfm_df['R_rank'].max())*100
+rfm_df['F_rank_norm']=(rfm_df['F_rank']/rfm_df['F_rank'].max())*100
+rfm_df['M_rank_norm']=(rfm_df['F_rank']/rfm_df['M_rank'].max())*100
+rfm_df.head()
+# Now we need to apply our equation and create final score **Consolidated Score = 0.15*R_rank_norm + 0.28*F_rank_norm + 0.57M_rank_norm**
+rfm_df['RFM_Score']=0.15*rfm_df['R_rank_norm']+0.28*rfm_df['F_rank_norm']+0.57*rfm_df['M_rank_norm']
+rfm_df=rfm_df.round(0)
+rfm_df.head()
+
+# ## Customer segments with RFM Model
+# # Segment customers based on RFM score
+# 0 - 50 - Low valued customer
+# 50 - 75 - Medium valued customer
+# 76 - 100 - High valued customer
+rfm_df["Customer_segment"]=np.where(rfm_df['RFM_Score'] > 75 ,"High Value Customer",(np.where(rfm_df['RFM_Score'] < 50 , "Low value Customer" ,"Medium Value Customer")))
+rfm_df.head()
+rfm_df=rfm_df.to_excel(os.path.join(DIR,'results.xlsx'))
