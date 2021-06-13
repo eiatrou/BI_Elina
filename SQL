@@ -1,0 +1,32 @@
+#we need cities which exceed 500 orders. So first we declare a variable with that minimun # of orders
+declare ordermin int64;
+set ordermin=500;
+#First sub table calculating how may cities have placed Breakfast order
+with counts as(
+select b.city,count(b.order_id) as orders,count(distinct b.user_id) as users
+from `bi-2019-test.ad_hoc.orders_jan2021`as b
+where b.cuisine_parent='Breakfast'
+
+group by b.city
+having count(b.order_id) >ordermin 
+order by orders desc
+
+limit 10),
+#Seperately we create a sub table in which we calculate number of users who have ordered Breakfast
+breakfastusers as(
+    select distinct user_id from `bi-2019-test.ad_hoc.orders_jan2021`
+    where cuisine_parent='Breakfast'
+),
+
+#Then we calculate the avg spend of the total orders but only the one of the users which have ordered breakfast at least once.
+#Thus, we use the users found in breakfastusers subtable
+averagespend as(select c.city,round(sum(basket)/count(distinct c.user_id),3) as Spend from `bi-2019-test.ad_hoc.orders_jan2021` as c
+where exists(select user_id from breakfastusers where c.user_id=breakfastusers.user_id)
+group by city
+
+)
+#Finally we return all findings from these three subtables in one!
+select a.city,a.orders,a.users,d.Spend  from counts as a
+left join averagespend as d on 
+a.city=d.city
+group by a.city,a.orders,a.users,d.Spend
