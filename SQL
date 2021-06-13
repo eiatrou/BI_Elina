@@ -1,3 +1,4 @@
+#In order to run the query we only need to copy/paste it into BigQuery Platform
 #we need cities which exceed 500 orders. So first we declare a variable with that minimun # of orders
 declare ordermin int64;
 set ordermin=500;
