@@ -1,3 +1,5 @@
+#In order to Run the script, you will need 1/Spyder or Jupyter Notebook 2/an excel file on your Desktop called "BQ_Orders" which contains the "orders_jan2021" table from BigQuery
+
 #Setting my local path 
 import os 
 os.getcwd()
